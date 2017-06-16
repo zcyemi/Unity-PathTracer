@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
+
 public class PathTracerCamera : MonoBehaviour {
 
     public RenderTexture rtex;
@@ -13,6 +14,9 @@ public class PathTracerCamera : MonoBehaviour {
 
     private Camera m_camera;
 
+    private Vector3 pos;
+    private Quaternion rota;
+
     private void Awake()
     {
         ResetRender();
@@ -21,11 +25,25 @@ public class PathTracerCamera : MonoBehaviour {
     void Start () {
 		
 	}
+
+    private void checkCamera()
+    {
+        if (m_camera == null) m_camera = GetComponent<Camera>();
+    }
 	
 	// Update is called once per frame
 	void Update () {
-		
+        checkCamera();
+
+
+        if (pos != m_camera.transform.position || rota != m_camera.transform.rotation)
+        {
+            ResetRender();
+            pos = m_camera.transform.position;
+            rota = m_camera.transform.rotation;
+        }
 	}
+
 
     private void OnRenderImage(RenderTexture source, RenderTexture destination)
     {
@@ -80,7 +98,7 @@ public class PathTracerCamera : MonoBehaviour {
         if (m_camera == null) m_camera = GetComponent<Camera>();
         var mtx = m_camera.projectionMatrix.inverse;
         pos = m_camera.cameraToWorldMatrix * mtx * pos;
-        Gizmos.DrawSphere(new Vector3(pos.x, pos.y, pos.z) * z, 0.1f);
+        Gizmos.DrawSphere(m_camera.transform.position+ new Vector3(pos.x, pos.y, pos.z) * z, 0.1f);
     }
 
     public void ResetRender()
