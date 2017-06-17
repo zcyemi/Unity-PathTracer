@@ -19,13 +19,16 @@ public class PathTracerCamera : MonoBehaviour {
 
 
     private ComputeBuffer m_computeBuffer;
-
+    [SerializeField]
     public CSGcontainer m_csg;
+
+    public static PathTracerCamera Instance;
 
     private void Awake()
     {
+        Instance = this;
         ResetRender();
-        UpdateBuffer(m_csg);
+        
     }
     // Use this for initialization
     void Start () {
@@ -50,13 +53,19 @@ public class PathTracerCamera : MonoBehaviour {
         }
 	}
 
-    private void UpdateBuffer(CSGcontainer csg)
+    public void UpdateBuffer()
     {
-        int stride = csg.GetStride();
-        Debug.Log("stride:" + stride);
-        m_computeBuffer = new ComputeBuffer(csg.objs.Count, csg.GetStride(), ComputeBufferType.Default);
-        m_computeBuffer.SetData(csg.GetBufferData());
+        if (m_csg == null) return;
+        int stride = m_csg.GetStride();
+        //Debug.Log("stride:" + stride);
+
+        int count = m_csg.PrimitiveCount;
+        //Debug.Log("count:" + count);
+        if(m_computeBuffer == null)
+            m_computeBuffer = new ComputeBuffer(count, m_csg.GetStride(), ComputeBufferType.Default);
+        m_computeBuffer.SetData(m_csg.GetBufferData());
         mattracer.SetBuffer("_buffer", m_computeBuffer);
+        mattracer.SetInt("_numberOfObjects", count);
     }
 
     public void OnDestroy()
@@ -134,5 +143,7 @@ public class PathTracerCamera : MonoBehaviour {
         Iterator = 0;
         rtex.DiscardContents(true, true);
         rtext.DiscardContents(true, true);
+
+        UpdateBuffer();
     }
 }

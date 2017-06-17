@@ -38,7 +38,7 @@ Shader "Unlit/PathTracerShader"
 			float4x4 _ProjInv;
 			float _u_iterations;
 
-			float _numberOfObjects;
+			
 
 			
 			
@@ -82,7 +82,7 @@ Shader "Unlit/PathTracerShader"
 
 				float3 texColor = tex2D(_MainTex, i.uv);
 
-				float3 retColor = lerp(finalColor/5.0, texColor, _u_iterations / (1.0 + _u_iterations));
+				float3 retColor = lerp(finalColor/ depth, texColor, _u_iterations / (1.0 + _u_iterations));
 
 				return fixed4(retColor,1.0);
 			}

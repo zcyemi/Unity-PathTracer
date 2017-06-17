@@ -1,5 +1,5 @@
 
-const int depth = 5;
+const static int depth = 5;
 
 const static float DIST_MAX = 100000.0;
 
@@ -21,11 +21,25 @@ struct RAY
 
 struct GEOM
 {
-	float3 pos;
-	float3 param;
+	float4 pos;
+	float reflective;
+	float refractive;
+	float reflectivity;
+	float indexOfRefraction;
+	float3 color;
+	float emittance;
 	int type;
 };
 
+struct INTERSECT
+{
+	float3 p;
+	float3 n;
+	GEOM g;
+};
+
+
+int _numberOfObjects;
 StructuredBuffer<GEOM> _buffer;
 
 float3 _initray;
@@ -66,12 +80,6 @@ float3 caculateRandomDirectionInHemisphere(float seed, float3 normal)
 }
 
 
-struct INTERSECT
-{
-	float3 p;
-	float3 n;
-	int g;
-};
 
 float3 getPointOnRay(RAY r, float t)
 {
@@ -104,39 +112,50 @@ float intersectSphere(RAY r,float3 center,float radius, out float3 normal,out fl
 	return t;
 }
 
+float intersectPlane(RAY r, float3 center, float3 dir, out float3 normal, out float3 hitpos)
+{
+	dir = normalize(dir);
+	float3 rd = r.origin - center;
+	float ndotd = dot(dir,rd);
+	float len = abs(ndotd);
+
+
+	float ndott = dot(r.dir, -dir);
+	float t = len / ndott;
+
+	normal = dir;
+	hitpos = getPointOnRay(r, t);
+	return t;
+}
+
 
 bool intersectWorld(RAY r, inout INTERSECT intersect, inout float dist)
 {
 	float3 normal, hitpos;
 	float t;
 	float t_max = 10000;
-	t = intersectSphere(r, _buffer[0].pos, _buffer[0].param.x, normal, hitpos);
-	if (t > 0 && t < t_max)
-	{
-		t_max = t;
-		intersect.p = hitpos;
-		intersect.n = normal;
-		intersect.g = 1;
-	}
 
-	t = intersectSphere(r, _buffer[1].pos, _buffer[1].param.x, normal, hitpos);
-	if (t > 0 && t < t_max)
+	for (int i = 0; i < _numberOfObjects; i++)
 	{
-		t_max = t;
-		intersect.p = hitpos;
-		intersect.n = normal;
-		intersect.g = 2;
-	}
+		GEOM geom = _buffer[i];
+		if (geom.type == 0)
+		{
+			//sphere
+			t = intersectSphere(r, geom.pos, geom.pos.w, normal, hitpos);
+		}
+		else if (geom.type == 1)
+		{
+			t = intersectPlane(r, geom.pos, geom.pos, normal, hitpos);
+		}
 
-	t = intersectSphere(r, _buffer[2].pos, _buffer[2].param.x, normal, hitpos);
-	if (t > 0 && t < t_max)
-	{
-		t_max = t;
-		intersect.p = hitpos;
-		intersect.n = normal;
-		intersect.g = 0;
+		if (t > 0 && t < t_max)
+		{
+			t_max = t;
+			intersect.p = hitpos;
+			intersect.n = normal;
+			intersect.g = geom;
+		}
 	}
-
 
 	dist = t_max;
 	if (t_max < 10000)
@@ -167,28 +186,24 @@ void pathTracer(inout RAY r, int rayDepth, inout float3 col)
 
 	float shift = 0.001;
 
-	for (int i = 0; i < 5; i++)
+	for (int i = 0; i < depth; i++)
 	{
 		float seed = _Time.x + float(i);
-		//t = intersectSphere(r, 0, 0.5,normal,hitpos);
-
-		bool iscoli = intersectWorld(r, intersect, t);
-
-		if (iscoli)
+		if (intersectWorld(r, intersect, t))
 		{
-			if (intersect.g == 0)
+			GEOM g = intersect.g;
+			if (g.emittance > 0)
 			{
-				colorMask = colorMask*10.0;
-				col = colorMask;
+				//light
+				colorMask = colorMask * g.color * g.emittance;
+				tempCol = colorMask;
+				col += tempCol;
 				return;
 			}
 			else
 			{
 				//reflective
-				float3 gcol = color1;
-				if (intersect.g == 2)
-					gcol = color2;
-				colorMask *= gcol;
+				colorMask *= g.color;
 				tempCol = colorMask;
 
 				float random = rand(intersect.p.xy);
