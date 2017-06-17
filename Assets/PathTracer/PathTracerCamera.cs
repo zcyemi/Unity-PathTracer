@@ -17,9 +17,15 @@ public class PathTracerCamera : MonoBehaviour {
     private Vector3 pos;
     private Quaternion rota;
 
+
+    private ComputeBuffer m_computeBuffer;
+
+    public CSGcontainer m_csg;
+
     private void Awake()
     {
         ResetRender();
+        UpdateBuffer(m_csg);
     }
     // Use this for initialization
     void Start () {
@@ -44,6 +50,23 @@ public class PathTracerCamera : MonoBehaviour {
         }
 	}
 
+    private void UpdateBuffer(CSGcontainer csg)
+    {
+        int stride = csg.GetStride();
+        Debug.Log("stride:" + stride);
+        m_computeBuffer = new ComputeBuffer(csg.objs.Count, csg.GetStride(), ComputeBufferType.Default);
+        m_computeBuffer.SetData(csg.GetBufferData());
+        mattracer.SetBuffer("_buffer", m_computeBuffer);
+    }
+
+    public void OnDestroy()
+    {
+        if (m_computeBuffer != null)
+            m_computeBuffer.Dispose();
+        m_computeBuffer.Release();
+        m_computeBuffer = null;
+    }
+
 
     private void OnRenderImage(RenderTexture source, RenderTexture destination)
     {
@@ -52,17 +75,21 @@ public class PathTracerCamera : MonoBehaviour {
         var mtx= m_camera.projectionMatrix.inverse;
         mattracer.SetMatrix("_ProjInv", GetMtx());
         mattracer.SetFloat("_u_iterations", Iterator);
-        if (rtex == null || rtext == null)
+        if (rtex == null)
         {
-            rtex = new RenderTexture(1920, 1080, 0, RenderTextureFormat.Default);
-            rtext = new RenderTexture(1920, 1080, 0, RenderTextureFormat.Default);
+            rtex = new RenderTexture(1920, 1080, 0);
         }
+            
+        if (rtex == null)
+        {
+            rtext = new RenderTexture(1920, 1080, 0);
+        }
+            
 
         //Graphics.Blit(source, destination);
 
         if (mattracer != null)
         {
-            
             Graphics.Blit(rtex, rtext, mattracer);
             Graphics.Blit(rtext, rtex);
             var rect = m_camera.rect;
@@ -76,16 +103,17 @@ public class PathTracerCamera : MonoBehaviour {
     }
 
 
-    public void OnDrawGizmos()
-    {
-        for(int i=0;i<=10;i++)
-        {
-            for(int j=0;j<=10;j++)
-            {
-                DrawPoint(new Vector4(Mathf.Lerp(-1f, 1f, i / 10f), Mathf.Lerp(-1f, 1f, j / 10f), 1f, 1f));
-            }
-        }
-    }
+    //public void OnDrawGizmos()
+    //{
+        
+    //    for(int i=0;i<=10;i++)
+    //    {
+    //        for(int j=0;j<=10;j++)
+    //        {
+    //            DrawPoint(new Vector4(Mathf.Lerp(-1f, 1f, i / 10f), Mathf.Lerp(-1f, 1f, j / 10f), 1f, 1f));
+    //        }
+    //    }
+    //}
 
     public Matrix4x4 GetMtx()
     {
@@ -104,13 +132,7 @@ public class PathTracerCamera : MonoBehaviour {
     public void ResetRender()
     {
         Iterator = 0;
-        if (rtex != null)
-            rtex.DiscardContents();
-        if(rtext != null)
-            rtext.DiscardContents();
-        
-
-        rtex = null;
-        rtext = null;
+        rtex.DiscardContents(true, true);
+        rtext.DiscardContents(true, true);
     }
 }

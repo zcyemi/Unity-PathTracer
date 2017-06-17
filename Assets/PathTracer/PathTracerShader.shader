@@ -15,13 +15,9 @@ Shader "Unlit/PathTracerShader"
 			CGPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
-			#pragma target 4.0
+			#pragma target 4.5
 			#include "UnityCG.cginc"
 			#include "PathTracer.cginc"
-
-			
-
-
 
 			struct appdata
 			{
@@ -43,6 +39,8 @@ Shader "Unlit/PathTracerShader"
 			float _u_iterations;
 
 			float _numberOfObjects;
+
+			
 			
 			v2f vert (appdata v)
 			{

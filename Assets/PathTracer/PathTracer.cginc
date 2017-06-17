@@ -21,22 +21,12 @@ struct RAY
 
 struct GEOM
 {
-	float3 color;
+	float3 pos;
+	float3 param;
 	int type;
-	int texturetype;
-
-	int reflective;
-	int refractive;
-	float reflectivity;
-
-	float indexOfRefraction;
-	int subsurfaceScatter;
-	int emittance;
-
-	float4x4 model;
-	float4x4 invmodel;
-	float4x4 transinvmodel;
 };
+
+StructuredBuffer<GEOM> _buffer;
 
 float3 _initray;
 
@@ -120,7 +110,7 @@ bool intersectWorld(RAY r, inout INTERSECT intersect, inout float dist)
 	float3 normal, hitpos;
 	float t;
 	float t_max = 10000;
-	t = intersectSphere(r, 0, 1.5, normal, hitpos);
+	t = intersectSphere(r, _buffer[0].pos, _buffer[0].param.x, normal, hitpos);
 	if (t > 0 && t < t_max)
 	{
 		t_max = t;
@@ -129,7 +119,7 @@ bool intersectWorld(RAY r, inout INTERSECT intersect, inout float dist)
 		intersect.g = 1;
 	}
 
-	t = intersectSphere(r, float3(2.5,0.5,0.5), 3, normal, hitpos);
+	t = intersectSphere(r, _buffer[1].pos, _buffer[1].param.x, normal, hitpos);
 	if (t > 0 && t < t_max)
 	{
 		t_max = t;
@@ -138,7 +128,7 @@ bool intersectWorld(RAY r, inout INTERSECT intersect, inout float dist)
 		intersect.g = 2;
 	}
 
-	t = intersectSphere(r, float3(1.5, 3, -0.5), 0.5, normal, hitpos);
+	t = intersectSphere(r, _buffer[2].pos, _buffer[2].param.x, normal, hitpos);
 	if (t > 0 && t < t_max)
 	{
 		t_max = t;
@@ -157,12 +147,10 @@ bool intersectWorld(RAY r, inout INTERSECT intersect, inout float dist)
 
 void pathTracer(inout RAY r, int rayDepth, inout float3 col)
 {
-	float r1 = rand(r.origin.xy);
-	float3 dir1 = normalize(caculateRandomDirectionInHemisphere(_Time.y + r1,r.dir));
-	r.dir = lerp(r.dir, dir1, 0.001);
 
-	float3 color1 = float3(1.0, 0, 0);
-	float3 color2 = float3(0, 1.0, 0);
+	float3 color1 = float3(1.0, 0.2, 0.3);
+	float3 color2 = float3(0.4, 1.0, 0.2);
+	float3 error = float3(1.0, 0, 1.0);
 
 	float3 tempCol = 0;
 
@@ -190,23 +178,31 @@ void pathTracer(inout RAY r, int rayDepth, inout float3 col)
 		{
 			if (intersect.g == 0)
 			{
-				colorMask = colorMask;
+				colorMask = colorMask*10.0;
 				col = colorMask;
 				return;
 			}
 			else
 			{
+				//reflective
 				float3 gcol = color1;
 				if (intersect.g == 2)
 					gcol = color2;
 				colorMask *= gcol;
 				tempCol = colorMask;
-			}
-			
 
-			float random = rand(intersect.p.xy);
-			r.dir = normalize(caculateRandomDirectionInHemisphere(seed + random, intersect.n));
-			r.origin = intersect.p + r.dir *shift;
+				float random = rand(intersect.p.xy);
+				//r.dir = normalize(caculateRandomDirectionInHemisphere(seed + random, intersect.n));
+				r.dir = reflect(r.dir, intersect.n);
+				r.origin = intersect.p + r.dir *shift;
+			}
+			col += tempCol;
+		}
+		else
+		{
+			//col = error;
+			//col = 0;
+			return;
 		}
 		col += tempCol;
 	}
