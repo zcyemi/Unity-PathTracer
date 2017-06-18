@@ -41,6 +41,7 @@ struct INTERSECT
 {
 	float3 p;
 	float3 n;
+	float3 c;
 	GEOM g;
 };
 
@@ -160,6 +161,7 @@ bool intersectWorld(RAY r, inout INTERSECT intersect, inout float dist)
 			intersect.p = hitpos;
 			intersect.n = normal;
 			intersect.g = geom;
+			intersect.c = geom.pos;
 		}
 	}
 
@@ -170,7 +172,45 @@ bool intersectWorld(RAY r, inout INTERSECT intersect, inout float dist)
 }
 
 ////////////////// Rendering Function
+float halfLambert(float3 v1, float3 v2)
+{
+	float dotv = dot(v1, v2);
+	return dotv *0.5 + 0.5;
+}
 
+float blinnPhongSpecular(float3 normal, float3 lightdir, float power)
+{
+	float3 halfang = normalize(normal + lightdir);
+	return pow(saturate(dot(normal, halfang)), power);
+}
+
+float3 subScatter(INTERSECT intersect, float seed)
+{
+	float3 lightPos = float3(0.2, 2.45, 0);
+	float materialThick = 0.5;
+	float3 extinctionCoef = 0.7;
+	float spec = 15;
+
+	float attenuation = 10 / distance(lightPos, intersect.p);
+	float3 lvec = normalize(lightPos - intersect.p);
+	float3 norm = normalize(intersect.n);
+	float3 evec = normalize(intersect.p - intersect.c);
+
+	float3 dotLN = attenuation *halfLambert(lvec, norm);
+	dotLN *= intersect.g.color;
+
+	//indirect term
+	float3 indirectTerm = materialThick * max(0.0, dot(-evec, lvec));
+	indirectTerm += materialThick *halfLambert(lvec, -norm);
+	indirectTerm *= attenuation;
+	indirectTerm *= extinctionCoef;
+
+	float3 finalColor = dotLN + indirectTerm;
+
+	float3 specularTerm = blinnPhongSpecular(norm, lvec, spec);
+
+	return finalColor + specularTerm;// +specularTerm;
+}
 
 /////////////////
 
@@ -222,14 +262,21 @@ void pathTracer(inout RAY r, int rayDepth, inout float3 col)
 			}
 			else
 			{
-
-				//reflective
-				colorMask *= g.color;
-				tempCol = colorMask;
-
-				float random = rand(intersect.p.xy);
-				r.dir = reflect(r.dir, intersect.n);
-				r.origin = intersect.p + r.dir *shift;
+				if (g.refractive > 0)
+				{
+					col = float3(0, 5, 0);
+					return;
+				}
+				else
+				{
+					float random = rand(intersect.p.xy);
+					colorMask *= subScatter(intersect, random);
+					colorMask *= g.color;
+					tempCol = colorMask;
+					r.IOR = 1.0;
+					r.dir = reflect(r.dir, intersect.n);
+					r.origin = intersect.p + r.dir *shift;
+				}
 			}
 			col += tempCol;
 		}
