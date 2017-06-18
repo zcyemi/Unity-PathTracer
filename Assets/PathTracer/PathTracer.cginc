@@ -212,6 +212,43 @@ float3 subScatter(INTERSECT intersect, float seed)
 	return finalColor + specularTerm;// +specularTerm;
 }
 
+
+//Fraction Fresnel
+struct FRESNEL
+{
+	float reflectCoef;
+	float transmitCoef;
+};
+
+FRESNEL caculateFresnel(float3 normal, float3 incident, float incidentIOR, float transmittedIOR)
+{
+	FRESNEL fresnel;
+	incident = normalize(incident);
+	normal = normalize(normal);
+	float cosThetaI = abs(dot(normal, incident));
+	float sinIncident = sqrt(1.0 - cosThetaI * cosThetaI);
+	float sinTransmit = incidentIOR / transmittedIOR * sinIncident;
+	float cosThetaT = sqrt(1.0 - sinTransmit*sinTransmit);
+	if (cosThetaT <= 0.0)
+	{
+		fresnel.reflectCoef = 1.0;
+		fresnel.transmitCoef = 0.0;
+		return fresnel;
+	}
+	else
+	{
+		//Wiki pedia https://en.wikipedia.org/wiki/Fresnel_equations
+		float Rs = (incidentIOR *cosThetaI - transmittedIOR * cosThetaT) / (incidentIOR *cosThetaI + transmittedIOR * cosThetaT);
+		Rs *= Rs;
+		float Rp = (incidentIOR* cosThetaT - transmittedIOR * cosThetaI) / (incidentIOR* cosThetaT + transmittedIOR * cosThetaI);
+		Rp *= Rp;
+
+		fresnel.reflectCoef = 0.5*(Rs + Rp);
+		fresnel.transmitCoef = 1.0 - fresnel.reflectCoef;
+		return fresnel;
+	}
+}
+
 /////////////////
 
 
@@ -222,7 +259,6 @@ void pathTracer(inout RAY r, int rayDepth, inout float3 col)
 	float3 color2 = float3(0.4, 1.0, 0.2);
 	float3 error = float3(1.0, 0, 1.0);
 
-	float3 tempCol = 0;
 
 	float tmax = DIST_MAX;
 	float t = 0;
@@ -243,50 +279,81 @@ void pathTracer(inout RAY r, int rayDepth, inout float3 col)
 		if (intersectWorld(r, intersect, t))
 		{
 			GEOM g = intersect.g;
+			float random = rand(intersect.p.xy);
 			if (g.emittance > 0)
 			{
 				//light
 				colorMask = colorMask * g.color * g.emittance;
-				tempCol = colorMask;
-				col += tempCol;
+				col = colorMask;
 				return;
 			}
 			else if (g.reflective <= 0 && g.refractive <= 0)
 			{
 				colorMask *= g.color;
-				tempCol = colorMask;
+				col = colorMask;
 
-				float random = rand(intersect.p.xy);
 				r.dir = normalize(hemiSphereSampling(seed + random, intersect.n));
 				r.origin = intersect.p + r.dir *shift;
 			}
 			else
 			{
+				bool isInsideOut = dot(r.dir, intersect.n) > 0;
 				if (g.refractive > 0)
 				{
-					col = float3(0, 5, 0);
-					return;
+					float3 random3 = float3(random,rand(intersect.p.xz), rand(intersect.p.yz));
+					float oldIOR = r.IOR;
+					float newIOR = g.indexOfRefraction;
+
+					float reflect_range = -1.0;
+					float eta = oldIOR / newIOR;
+					float3 reflectR = reflect(r.dir, intersect.n);
+					float3 refractR = refract(r.dir, intersect.n, eta);
+					FRESNEL fresnel = caculateFresnel(intersect.n, r.dir, oldIOR, newIOR);
+
+					reflect_range = fresnel.reflectCoef; //reflect rate  reflect+ refract = 1
+
+					float randomnum = getrandom(random, seed);
+					if (randomnum < reflect_range)
+					{
+						r.dir = reflectR;
+						r.origin = intersect.p + shift * r.dir;
+						if (g.material1 > 0) //subsurface scatter
+						{
+							colorMask *= subScatter(intersect, random);
+						}
+					}
+					else
+					{
+						r.dir = refractR;
+						r.origin = intersect.p + shift* r.dir;
+					}
+
+					if (isInsideOut)
+						r.IOR = 1.0;
+					else
+						r.IOR = newIOR;
+
+					colorMask *= g.color;
+					col = colorMask;
+
 				}
 				else
 				{
-					float random = rand(intersect.p.xy);
 					colorMask *= subScatter(intersect, random);
 					colorMask *= g.color;
-					tempCol = colorMask;
+					col = colorMask;
 					r.IOR = 1.0;
 					r.dir = reflect(r.dir, intersect.n);
 					r.origin = intersect.p + r.dir *shift;
 				}
 			}
-			col += tempCol;
 		}
 		else
 		{
 			//col = error;
-			//col = 0;
+			col = 0;
 			return;
 		}
-		col += tempCol;
 	}
 
 	
