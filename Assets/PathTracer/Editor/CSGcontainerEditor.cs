@@ -28,13 +28,13 @@ public class CSGPrimitiveEditor:Editor
 {
     public override void OnInspectorGUI()
     {
-        var p = target as CSGPrimitive;
 
         EditorGUI.BeginChangeCheck();
         base.OnInspectorGUI();
         if(EditorGUI.EndChangeCheck())
         {
-            PathTracerCamera.Instance.ResetRender();
+            if(PathTracerCamera.Instance != null)
+                PathTracerCamera.Instance.ResetRender();
         }
     }
 }

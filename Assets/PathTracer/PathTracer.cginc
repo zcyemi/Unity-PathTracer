@@ -26,9 +26,15 @@ struct GEOM
 	float refractive;
 	float reflectivity;
 	float indexOfRefraction;
+
 	float3 color;
 	float emittance;
-	int type;
+
+	float type;
+
+	float material1;	//sss
+	float material2;	
+	float material3;
 };
 
 struct INTERSECT
@@ -57,7 +63,7 @@ float rand(float2 co)
 	return frac(sin(dt) *c);
 }
 
-float3 caculateRandomDirectionInHemisphere(float seed, float3 normal)
+float3 hemiSphereSampling(float seed, float3 normal)
 {
 	float u = getrandom(float3(12.9898, 78.233, 151.7182), seed);
 	float v = getrandom(float3(63.7264, 10.873, 623.6736), seed);
@@ -163,6 +169,11 @@ bool intersectWorld(RAY r, inout INTERSECT intersect, inout float dist)
 	return false;
 }
 
+////////////////// Rendering Function
+
+
+/////////////////
+
 
 void pathTracer(inout RAY r, int rayDepth, inout float3 col)
 {
@@ -200,14 +211,23 @@ void pathTracer(inout RAY r, int rayDepth, inout float3 col)
 				col += tempCol;
 				return;
 			}
+			else if (g.reflective <= 0 && g.refractive <= 0)
+			{
+				colorMask *= g.color;
+				tempCol = colorMask;
+
+				float random = rand(intersect.p.xy);
+				r.dir = normalize(hemiSphereSampling(seed + random, intersect.n));
+				r.origin = intersect.p + r.dir *shift;
+			}
 			else
 			{
+
 				//reflective
 				colorMask *= g.color;
 				tempCol = colorMask;
 
 				float random = rand(intersect.p.xy);
-				//r.dir = normalize(caculateRandomDirectionInHemisphere(seed + random, intersect.n));
 				r.dir = reflect(r.dir, intersect.n);
 				r.origin = intersect.p + r.dir *shift;
 			}

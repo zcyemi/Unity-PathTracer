@@ -2,14 +2,35 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System;
+using System.Runtime.InteropServices;
 
 [Serializable]
+[StructLayout(LayoutKind.Sequential)]
 public struct Primitive
 {
+    [SerializeField]
     public Vector4 pos;
-    public Vector4 param;
-    public Vector4 color;
-    public int type;
+    [SerializeField]
+    public float reflective;
+    [SerializeField]
+    public float refractive;
+    [SerializeField]
+    public float reflectivity;
+    [SerializeField]
+    public float indexOfRefraction;
+    [SerializeField]
+    public Vector3 color;
+    [SerializeField]
+    public float emmitance;
+    [SerializeField]
+    public float type;
+
+    [SerializeField]
+    public float mat1;
+    [SerializeField]
+    public float mat2;
+    [SerializeField]
+    public float mat3;
 }
 
 [ExecuteInEditMode]
@@ -35,7 +56,7 @@ public class CSGcontainer : MonoBehaviour {
 
     public int GetStride()
     {
-        return sizeof(float) * 12 + sizeof(int);
+        return sizeof(float) * 16;
     }
 
     public Primitive[] GetBufferData()

@@ -30,7 +30,6 @@ Shader "Unlit/PathTracerShader"
 				float2 uv : TEXCOORD0;
 				float4 vertex : SV_POSITION;
 				float3 worldDir: TEXCOORD1;
-				float4 screenPos: TEXCOORD2;
 			};
 
 			sampler2D _MainTex;
@@ -38,10 +37,6 @@ Shader "Unlit/PathTracerShader"
 			float4x4 _ProjInv;
 			float _u_iterations;
 
-			
-
-			
-			
 			v2f vert (appdata v)
 			{
 				v2f o;

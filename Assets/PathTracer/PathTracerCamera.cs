@@ -62,7 +62,11 @@ public class PathTracerCamera : MonoBehaviour {
         int count = m_csg.PrimitiveCount;
         //Debug.Log("count:" + count);
         if(m_computeBuffer == null)
-            m_computeBuffer = new ComputeBuffer(count, m_csg.GetStride(), ComputeBufferType.Default);
+        {
+            Debug.Log("stride:" + stride);
+            m_computeBuffer = new ComputeBuffer(count, stride, ComputeBufferType.Default);
+        }
+            
         m_computeBuffer.SetData(m_csg.GetBufferData());
         mattracer.SetBuffer("_buffer", m_computeBuffer);
         mattracer.SetInt("_numberOfObjects", count);
