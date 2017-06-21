@@ -72,6 +72,7 @@ Shader "Unlit/PathTracerShader"
 
 				_initray = r.dir;
 
+
 				float3 finalColor = 0;
 				pathTracer(r, 1, finalColor);// intersect(r);
 

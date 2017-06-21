@@ -355,6 +355,5 @@ void pathTracer(inout RAY r, int rayDepth, inout float3 col)
 			return;
 		}
 	}
-
-	
+	col = 0;
 }
